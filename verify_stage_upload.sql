@@ -1,0 +1,11 @@
+USE ROLE SYSADMIN;
+USE WAREHOUSE WH_INGEST;
+
+SELECT
+    "name"          AS FILE_NAME,
+    "size"          AS FILE_SIZE_BYTES,
+    "last_modified" AS LAST_MODIFIED
+FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
+WHERE "name" ILIKE '%ElectricVehiclePopulationData%';
+
+LIST @EV_BRONZE.RAW.STG_EV_JSON;

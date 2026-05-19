@@ -1,0 +1,59 @@
+version: 2
+
+models:
+  - name: stg_ev_registrations
+    description: "Staging view over EV_REGISTRATIONS_STAGE - passthrough with consistent column names"
+
+  - name: int_ev_registrations_enriched
+    description: "Intermediate model joining registrations to master/dimension tables for FK surrogate keys"
+
+  - name: silver_ev_registrations
+    description: "Final Silver layer table with enriched EV registration data and FK references to master tables"
+    columns:
+      - name: DOL_VEHICLE_ID
+        tests:
+          - unique
+          - not_null
+      - name: VIN_PARTIAL
+        tests:
+          - not_null
+      - name: MAKE
+        tests:
+          - not_null
+      - name: EV_TYPE_FULL
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - 'Battery Electric Vehicle (BEV)'
+                - 'Plug-in Hybrid Electric Vehicle (PHEV)'
+      - name: MODEL_YEAR
+        tests:
+          - not_null
+      - name: MAKE_MODEL_ID
+        tests:
+          - relationships:
+              to: source('bronze_master', 'MST_VEHICLE_MAKE_MODEL')
+              field: MAKE_MODEL_ID
+      - name: EV_TYPE_ID
+        tests:
+          - relationships:
+              to: source('bronze_master', 'MST_EV_TYPE')
+              field: EV_TYPE_ID
+      - name: UTILITY_ID
+        tests:
+          - relationships:
+              to: source('bronze_master', 'MST_ELECTRIC_UTILITY')
+              field: UTILITY_ID
+              config:
+                where: "UTILITY_ID IS NOT NULL"
+      - name: GEO_ID
+        tests:
+          - relationships:
+              to: source('bronze_master', 'MST_GEOGRAPHY')
+              field: GEO_ID
+              config:
+                where: "GEO_ID IS NOT NULL"
+      - name: BRONZE_ROW_HASH
+        tests:
+          - not_null

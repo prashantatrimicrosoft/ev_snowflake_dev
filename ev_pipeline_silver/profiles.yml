@@ -1,0 +1,12 @@
+ev_pipeline_silver:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: ""
+      user: ""
+      role: SYSADMIN
+      database: EV_SILVER
+      warehouse: WH_TRANSFORM
+      schema: CLEAN
+      threads: 4

@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: silver
+    database: EV_SILVER
+    schema: CLEAN
+    tables:
+      - name: SILVER_EV_REGISTRATIONS
+        description: "dbt-enriched Silver table — contract boundary between Silver and Gold pipelines"

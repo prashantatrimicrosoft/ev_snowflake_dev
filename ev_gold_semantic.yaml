@@ -1,0 +1,697 @@
+name: ev_gold_analytics
+description: >
+  Semantic model for the Washington State EV Population dataset (22,183 registered vehicles).
+  Covers the Gold layer (EV_GOLD.SERVING) with fact, dimension, and pre-aggregated tables
+  for executive dashboards, sales/marketing analysis, and regional EV adoption insights.
+  WARNING: 2023 data is partial (dataset extracted mid-2023). Always filter IS_PARTIAL_YEAR=TRUE
+  or surface a warning when presenting 2023 YoY growth figures (-72.9% is a snapshot artifact).
+
+tables:
+  - name: FACT_EV_REGISTRATIONS
+    description: >
+      Primary fact table with one row per registered electric vehicle (22,183 rows).
+      Joins to all dimension tables via surrogate keys. Grain: 1 row per DOL_VEHICLE_ID.
+    base_table:
+      database: EV_GOLD
+      schema: SERVING
+      table: FACT_EV_REGISTRATIONS
+    primary_key:
+      columns:
+        - DOL_VEHICLE_ID
+    dimensions:
+      - name: DOL_VEHICLE_ID
+        description: WA Department of Licensing unique vehicle identifier
+        expr: DOL_VEHICLE_ID
+        data_type: TEXT
+        unique: true
+      - name: VEHICLE_KEY
+        description: Foreign key to DIM_VEHICLE
+        expr: VEHICLE_KEY
+        data_type: NUMBER
+      - name: GEO_KEY
+        description: Foreign key to DIM_GEOGRAPHY
+        expr: GEO_KEY
+        data_type: NUMBER
+      - name: DATE_KEY
+        description: Model year as integer — joins to DIM_DATE
+        expr: DATE_KEY
+        data_type: NUMBER
+        synonyms:
+          - model year
+          - year
+          - vehicle year
+      - name: UTILITY_KEY
+        description: Foreign key to DIM_UTILITY
+        expr: UTILITY_KEY
+        data_type: NUMBER
+      - name: IS_WA_RECORD
+        description: Whether vehicle is registered in Washington State
+        expr: IS_WA_RECORD
+        data_type: BOOLEAN
+      - name: IS_RANGE_UNKNOWN
+        description: Whether electric range is unknown or zero
+        expr: IS_RANGE_UNKNOWN
+        data_type: BOOLEAN
+      - name: IS_MSRP_UNKNOWN
+        description: Whether MSRP is unknown or zero
+        expr: IS_MSRP_UNKNOWN
+        data_type: BOOLEAN
+    measures:
+      - name: total_registrations
+        description: Total number of registered EVs
+        expr: COUNT(DOL_VEHICLE_ID)
+        data_type: NUMBER
+        default_aggregation: count
+        synonyms:
+          - registrations
+          - vehicles
+          - EVs
+          - count
+          - how many
+          - total EVs
+          - number of vehicles
+      - name: avg_electric_range
+        description: Average electric range in miles across vehicles
+        expr: AVG(ELECTRIC_RANGE_MILES)
+        data_type: NUMBER
+        default_aggregation: avg
+        synonyms:
+          - average range
+          - mean range
+          - typical range
+      - name: avg_msrp
+        description: Average base MSRP in USD
+        expr: AVG(BASE_MSRP_USD)
+        data_type: NUMBER
+        default_aggregation: avg
+        synonyms:
+          - average price
+          - mean MSRP
+          - typical price
+
+  - name: DIM_VEHICLE
+    description: >
+      Vehicle dimension with 136 distinct make/model/type combinations.
+      Includes manufacturer classification (Tesla/EV Startup/Legacy OEM) and EV type.
+    base_table:
+      database: EV_GOLD
+      schema: SERVING
+      table: DIM_VEHICLE
+    primary_key:
+      columns:
+        - VEHICLE_KEY
+    dimensions:
+      - name: VEHICLE_KEY
+        description: Surrogate key for vehicle dimension
+        expr: VEHICLE_KEY
+        data_type: NUMBER
+        unique: true
+      - name: MAKE
+        description: Vehicle manufacturer name (e.g., TESLA, NISSAN, CHEVROLET)
+        expr: MAKE
+        data_type: TEXT
+        synonyms:
+          - manufacturer
+          - brand
+          - automaker
+          - carmaker
+          - OEM
+          - who made it
+      - name: MODEL
+        description: Vehicle model name (e.g., MODEL 3, LEAF, BOLT EV)
+        expr: MODEL
+        data_type: TEXT
+        synonyms:
+          - vehicle model
+          - car model
+          - model name
+      - name: EV_TYPE_SHORT
+        description: "Electric vehicle type: BEV (Battery Electric) or PHEV (Plug-in Hybrid)"
+        expr: EV_TYPE_SHORT
+        data_type: TEXT
+        synonyms:
+          - vehicle type
+          - electric type
+          - BEV
+          - PHEV
+          - battery electric
+          - plug-in hybrid
+          - pure electric
+          - hybrid electric
+          - ev type
+      - name: EV_TYPE_FULL
+        description: Full EV type description
+        expr: EV_TYPE_FULL
+        data_type: TEXT
+      - name: CAFV_ELIGIBILITY
+        description: Clean Alternative Fuel Vehicle eligibility status (full text)
+        expr: CAFV_ELIGIBILITY
+        data_type: TEXT
+        synonyms:
+          - CAFV
+          - incentive eligibility
+          - clean fuel eligibility
+      - name: IS_TESLA
+        description: Whether the manufacturer is Tesla
+        expr: IS_TESLA
+        data_type: BOOLEAN
+        synonyms:
+          - tesla flag
+          - is it tesla
+      - name: IS_BEV
+        description: Whether the vehicle is a pure Battery Electric Vehicle
+        expr: IS_BEV
+        data_type: BOOLEAN
+      - name: MAKE_TIER
+        description: "Manufacturer tier: Tesla, EV Startup, or Legacy OEM"
+        expr: MAKE_TIER
+        data_type: TEXT
+        synonyms:
+          - manufacturer tier
+          - brand tier
+          - company type
+
+  - name: DIM_GEOGRAPHY
+    description: >
+      Geography dimension with state, county, city, ZIP, and region groupings.
+      99.7% of data is Washington State. Region groups: Western WA (Metro),
+      Western WA (Other), Eastern WA, Out-of-State.
+    base_table:
+      database: EV_GOLD
+      schema: SERVING
+      table: DIM_GEOGRAPHY
+    primary_key:
+      columns:
+        - GEO_KEY
+    dimensions:
+      - name: GEO_KEY
+        description: Surrogate key for geography dimension
+        expr: GEO_KEY
+        data_type: NUMBER
+        unique: true
+      - name: STATE_CODE
+        description: US state abbreviation (dominant value WA = 99.7%)
+        expr: STATE_CODE
+        data_type: TEXT
+        synonyms:
+          - state
+          - location state
+          - registered state
+      - name: COUNTY
+        description: County name (top = King, Snohomish, Pierce, Clark, Thurston)
+        expr: COUNTY
+        data_type: TEXT
+        synonyms:
+          - county name
+          - location
+          - area
+          - where
+      - name: CITY
+        description: City name
+        expr: CITY
+        data_type: TEXT
+        synonyms:
+          - city name
+          - town
+      - name: ZIP_CODE
+        description: ZIP code
+        expr: ZIP_CODE
+        data_type: TEXT
+        synonyms:
+          - zip
+          - postal code
+      - name: REGION_GROUP
+        description: "Geographic grouping: Western WA (Metro), Western WA (Other), Eastern WA, Out-of-State"
+        expr: REGION_GROUP
+        data_type: TEXT
+        synonyms:
+          - region
+          - geographic region
+          - part of state
+          - area group
+
+  - name: DIM_DATE
+    description: >
+      Calendar dimension for model years 1999-2026. Data exists for 1999-2023.
+      2024-2026 are future years with zero registrations.
+    base_table:
+      database: EV_GOLD
+      schema: SERVING
+      table: DIM_DATE
+    primary_key:
+      columns:
+        - DATE_KEY
+    dimensions:
+      - name: DATE_KEY
+        description: Model year as integer (primary key)
+        expr: DATE_KEY
+        data_type: NUMBER
+        unique: true
+      - name: MODEL_YEAR
+        description: Vehicle model year (1999-2026)
+        expr: MODEL_YEAR
+        data_type: NUMBER
+        synonyms:
+          - year
+          - registration year
+          - vehicle year
+          - when
+      - name: DECADE
+        description: "Decade label (e.g., 1990s, 2000s, 2010s, 2020s)"
+        expr: DECADE
+        data_type: TEXT
+      - name: ERA
+        description: "Era grouping: Pre-2010, 2010-2014, 2015-2019, 2020+"
+        expr: ERA
+        data_type: TEXT
+        synonyms:
+          - era label
+          - time period
+      - name: IS_CURRENT_YEAR
+        description: Whether this is the current calendar year
+        expr: IS_CURRENT_YEAR
+        data_type: BOOLEAN
+
+  - name: AGG_YOY_GROWTH
+    description: >
+      Pre-computed year-over-year EV registration growth by EV type (30 rows).
+      WARNING: 2023 IS_PARTIAL_YEAR=TRUE — dataset extracted mid-2023.
+      The -72.9% YoY shown for 2023 is a snapshot artifact, NOT a real market decline.
+      Always surface this warning when presenting 2023 growth figures.
+    base_table:
+      database: EV_GOLD
+      schema: SERVING
+      table: AGG_YOY_GROWTH
+    dimensions:
+      - name: MODEL_YEAR
+        description: Vehicle model year
+        expr: MODEL_YEAR
+        data_type: NUMBER
+        synonyms:
+          - year
+          - when
+      - name: EV_TYPE_SHORT
+        description: "BEV or PHEV"
+        expr: EV_TYPE_SHORT
+        data_type: TEXT
+        synonyms:
+          - vehicle type
+          - ev type
+      - name: IS_PARTIAL_YEAR
+        description: >
+          TRUE for 2023 — dataset was extracted mid-year. YoY growth for partial years
+          is misleading and should be filtered out or flagged with a warning.
+        expr: "CASE WHEN MODEL_YEAR = 2023 THEN TRUE ELSE FALSE END"
+        data_type: BOOLEAN
+    measures:
+      - name: registration_count
+        description: Number of registrations for that year and EV type
+        expr: REGISTRATIONS
+        data_type: NUMBER
+        default_aggregation: sum
+        synonyms:
+          - registrations
+          - count
+          - vehicles registered
+      - name: yoy_growth_pct
+        description: >
+          Year-over-year percentage change in registrations.
+          WARNING: 2023 value (-72.9%) is unreliable due to partial year data.
+        expr: YOY_GROWTH_PCT
+        data_type: NUMBER
+        default_aggregation: avg
+        synonyms:
+          - YoY growth
+          - year over year
+          - annual growth
+          - growth rate
+          - trend
+      - name: cumulative_registrations
+        description: Running total of registrations up to and including this year
+        expr: CUMULATIVE_REGISTRATIONS
+        data_type: NUMBER
+        default_aggregation: sum
+        synonyms:
+          - running total
+          - total to date
+          - cumulative count
+          - cumulative vehicles
+      - name: pct_of_year_total
+        description: Percentage this EV type represents of total registrations in that year
+        expr: PCT_OF_YEAR_TOTAL
+        data_type: NUMBER
+        default_aggregation: avg
+        synonyms:
+          - market penetration
+          - type share
+          - BEV vs PHEV split
+
+  - name: AGG_MARKET_SHARE
+    description: >
+      Pre-computed manufacturer market share by state and EV type (164 rows).
+      Tesla dominates with 44.71% overall share in WA.
+    base_table:
+      database: EV_GOLD
+      schema: SERVING
+      table: AGG_MARKET_SHARE
+    dimensions:
+      - name: MAKE
+        description: Vehicle manufacturer
+        expr: MAKE
+        data_type: TEXT
+        synonyms:
+          - manufacturer
+          - brand
+          - automaker
+      - name: MAKE_TIER
+        description: "Manufacturer classification: Tesla, EV Startup, Legacy OEM"
+        expr: MAKE_TIER
+        data_type: TEXT
+      - name: IS_TESLA
+        description: Whether this row is for Tesla
+        expr: IS_TESLA
+        data_type: BOOLEAN
+      - name: STATE_CODE
+        description: US state
+        expr: STATE_CODE
+        data_type: TEXT
+      - name: REGION_GROUP
+        description: Geographic region grouping
+        expr: REGION_GROUP
+        data_type: TEXT
+      - name: EV_TYPE_SHORT
+        description: "BEV or PHEV"
+        expr: EV_TYPE_SHORT
+        data_type: TEXT
+    measures:
+      - name: registration_count
+        description: Number of registrations for this manufacturer/state/type combination
+        expr: REGISTRATIONS
+        data_type: NUMBER
+        default_aggregation: sum
+        synonyms:
+          - registrations
+          - vehicles
+          - count
+      - name: market_share_pct
+        description: Percentage of total registrations within the state and EV type
+        expr: MARKET_SHARE_PCT
+        data_type: NUMBER
+        default_aggregation: avg
+        synonyms:
+          - market share
+          - manufacturer share
+          - brand share
+          - OEM share
+      - name: make_rank
+        description: Rank of manufacturer within state and EV type (1 = highest)
+        expr: MAKE_RANK
+        data_type: NUMBER
+        default_aggregation: min
+
+  - name: AGG_CAFV_ELIGIBILITY
+    description: >
+      CAFV incentive eligibility breakdown by EV type (5 rows).
+      50.33% of all EVs are eligible, 36.76% unknown, 12.91% not eligible.
+    base_table:
+      database: EV_GOLD
+      schema: SERVING
+      table: AGG_CAFV_ELIGIBILITY
+    dimensions:
+      - name: EV_TYPE_SHORT
+        description: "BEV or PHEV"
+        expr: EV_TYPE_SHORT
+        data_type: TEXT
+      - name: EV_TYPE_FULL
+        description: Full EV type description
+        expr: EV_TYPE_FULL
+        data_type: TEXT
+      - name: CAFV_ELIGIBILITY
+        description: CAFV eligibility status (full text from source)
+        expr: CAFV_ELIGIBILITY
+        data_type: TEXT
+        synonyms:
+          - CAFV status
+          - eligibility
+          - incentive status
+    measures:
+      - name: vehicle_count
+        description: Number of vehicles with this eligibility status
+        expr: REGISTRATIONS
+        data_type: NUMBER
+        default_aggregation: sum
+        synonyms:
+          - count
+          - vehicles
+          - registrations
+      - name: pct_of_total
+        description: Percentage of all 22,183 vehicles with this status
+        expr: PCT_OF_TOTAL
+        data_type: NUMBER
+        default_aggregation: avg
+        synonyms:
+          - percentage
+          - share
+          - eligibility percentage
+          - CAFV eligible percent
+      - name: pct_within_ev_type
+        description: Percentage within the specific EV type (BEV or PHEV)
+        expr: PCT_WITHIN_EV_TYPE
+        data_type: NUMBER
+        default_aggregation: avg
+
+  - name: AGG_REGIONAL_ADOPTION
+    description: >
+      EV adoption by WA county and region group (74 rows, WA-only).
+      King County dominates with 52.5% of all WA registrations.
+    base_table:
+      database: EV_GOLD
+      schema: SERVING
+      table: AGG_REGIONAL_ADOPTION
+    dimensions:
+      - name: STATE_CODE
+        description: State (always WA in this table)
+        expr: STATE_CODE
+        data_type: TEXT
+      - name: COUNTY
+        description: Washington State county
+        expr: COUNTY
+        data_type: TEXT
+        synonyms:
+          - county name
+          - location
+          - where
+      - name: REGION_GROUP
+        description: "Region: Western WA (Metro), Western WA (Other), Eastern WA"
+        expr: REGION_GROUP
+        data_type: TEXT
+        synonyms:
+          - region
+          - geographic region
+          - area
+      - name: EV_TYPE_SHORT
+        description: "BEV or PHEV"
+        expr: EV_TYPE_SHORT
+        data_type: TEXT
+    measures:
+      - name: ev_count
+        description: Number of EVs registered in this county/type combination
+        expr: REGISTRATIONS
+        data_type: NUMBER
+        default_aggregation: sum
+        synonyms:
+          - registrations
+          - vehicles
+          - adoption count
+          - how many
+      - name: bev_count
+        description: Number of BEVs in this county
+        expr: BEV_COUNT
+        data_type: NUMBER
+        default_aggregation: sum
+      - name: phev_count
+        description: Number of PHEVs in this county
+        expr: PHEV_COUNT
+        data_type: NUMBER
+        default_aggregation: sum
+      - name: bev_pct
+        description: Percentage of BEVs within this county
+        expr: BEV_PCT
+        data_type: NUMBER
+        default_aggregation: avg
+        synonyms:
+          - BEV share
+          - battery electric percentage
+      - name: county_rank
+        description: Rank of county by registration count (1 = highest)
+        expr: COUNTY_RANK
+        data_type: NUMBER
+        default_aggregation: min
+        synonyms:
+          - rank
+          - adoption rank
+
+  - name: AGG_MODEL_TRENDS
+    description: >
+      Model-level registration trends with YoY momentum (375 rows).
+      Top models: TESLA MODEL 3 (4,252 total), TESLA MODEL Y (3,458), NISSAN LEAF (2,533).
+    base_table:
+      database: EV_GOLD
+      schema: SERVING
+      table: AGG_MODEL_TRENDS
+    dimensions:
+      - name: MAKE
+        description: Vehicle manufacturer
+        expr: MAKE
+        data_type: TEXT
+        synonyms:
+          - manufacturer
+          - brand
+      - name: MODEL
+        description: Vehicle model
+        expr: MODEL
+        data_type: TEXT
+        synonyms:
+          - vehicle model
+          - car model
+      - name: EV_TYPE_SHORT
+        description: "BEV or PHEV"
+        expr: EV_TYPE_SHORT
+        data_type: TEXT
+      - name: MODEL_YEAR
+        description: Registration model year
+        expr: MODEL_YEAR
+        data_type: NUMBER
+        synonyms:
+          - year
+          - when
+    measures:
+      - name: registration_count
+        description: Registrations for this make/model/year
+        expr: REGISTRATIONS
+        data_type: NUMBER
+        default_aggregation: sum
+        synonyms:
+          - registrations
+          - count
+          - vehicles
+          - how many
+      - name: yoy_momentum_pct
+        description: Year-over-year percentage change for this model
+        expr: YOY_MOMENTUM_PCT
+        data_type: NUMBER
+        default_aggregation: avg
+        synonyms:
+          - momentum
+          - growth
+          - trend
+          - YoY change
+      - name: rank_in_year
+        description: Rank of this model within the given year (1 = most registered)
+        expr: RANK_IN_YEAR
+        data_type: NUMBER
+        default_aggregation: min
+        synonyms:
+          - ranking
+          - position
+          - top models
+
+relationships:
+  - name: fact_to_vehicle
+    left_table: FACT_EV_REGISTRATIONS
+    right_table: DIM_VEHICLE
+    join_type: left
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: VEHICLE_KEY
+        right_column: VEHICLE_KEY
+  - name: fact_to_geography
+    left_table: FACT_EV_REGISTRATIONS
+    right_table: DIM_GEOGRAPHY
+    join_type: left
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: GEO_KEY
+        right_column: GEO_KEY
+  - name: fact_to_date
+    left_table: FACT_EV_REGISTRATIONS
+    right_table: DIM_DATE
+    join_type: left
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: DATE_KEY
+        right_column: DATE_KEY
+
+verified_queries:
+  - name: yoy_growth_trend
+    question: "What is the YoY growth trend in EV registrations?"
+    sql: |
+      SELECT MODEL_YEAR, EV_TYPE_SHORT, REGISTRATIONS AS REGISTRATION_COUNT,
+             YOY_GROWTH_PCT, CUMULATIVE_REGISTRATIONS, PCT_OF_YEAR_TOTAL
+      FROM EV_GOLD.SERVING.AGG_YOY_GROWTH
+      ORDER BY MODEL_YEAR, EV_TYPE_SHORT
+    verified_at: "2026-05-18"
+    verified_by: PRATRI07
+
+  - name: regional_adoption
+    question: "Which regions have the highest EV adoption rates?"
+    sql: |
+      SELECT COUNTY, REGION_GROUP,
+             SUM(REGISTRATIONS) AS TOTAL_EVS,
+             ROUND(100.0 * SUM(REGISTRATIONS) / 22120, 2) AS WA_SHARE_PCT
+      FROM EV_GOLD.SERVING.AGG_REGIONAL_ADOPTION
+      GROUP BY COUNTY, REGION_GROUP
+      ORDER BY TOTAL_EVS DESC
+      LIMIT 10
+    verified_at: "2026-05-18"
+    verified_by: PRATRI07
+
+  - name: bev_vs_phev_penetration
+    question: "What is market penetration by vehicle type (BEV vs PHEV)?"
+    sql: |
+      SELECT EV_TYPE_SHORT,
+             SUM(REGISTRATIONS) AS TOTAL,
+             ROUND(100.0 * SUM(REGISTRATIONS) / 22183, 2) AS MARKET_SHARE_PCT
+      FROM EV_GOLD.SERVING.AGG_MARKET_SHARE
+      GROUP BY EV_TYPE_SHORT
+      ORDER BY TOTAL DESC
+    verified_at: "2026-05-18"
+    verified_by: PRATRI07
+
+  - name: tesla_vs_others_by_region
+    question: "Compare Tesla vs other manufacturers in market share by region"
+    sql: |
+      SELECT
+        CASE WHEN IS_TESLA THEN 'Tesla' ELSE 'Other' END AS TESLA_VS_OTHER,
+        STATE_CODE,
+        SUM(REGISTRATIONS) AS TOTAL,
+        ROUND(100.0 * SUM(REGISTRATIONS) /
+          SUM(SUM(REGISTRATIONS)) OVER (PARTITION BY STATE_CODE), 2) AS SHARE_PCT
+      FROM EV_GOLD.SERVING.AGG_MARKET_SHARE
+      WHERE STATE_CODE = 'WA'
+      GROUP BY CASE WHEN IS_TESLA THEN 'Tesla' ELSE 'Other' END, STATE_CODE
+    verified_at: "2026-05-18"
+    verified_by: PRATRI07
+
+  - name: cafv_eligibility_breakdown
+    question: "What percentage of EVs are eligible for CAFV incentives?"
+    sql: |
+      SELECT EV_TYPE_SHORT, CAFV_ELIGIBILITY,
+             REGISTRATIONS AS VEHICLE_COUNT,
+             PCT_OF_TOTAL AS ELIGIBILITY_PCT,
+             PCT_WITHIN_EV_TYPE AS TYPE_ELIGIBILITY_PCT
+      FROM EV_GOLD.SERVING.AGG_CAFV_ELIGIBILITY
+      ORDER BY REGISTRATIONS DESC
+    verified_at: "2026-05-18"
+    verified_by: PRATRI07
+
+  - name: trending_models
+    question: "Which vehicle models are trending?"
+    sql: |
+      SELECT MAKE, MODEL, MODEL_YEAR, REGISTRATIONS AS REGISTRATION_COUNT,
+             RANK_IN_YEAR, YOY_MOMENTUM_PCT
+      FROM EV_GOLD.SERVING.AGG_MODEL_TRENDS
+      WHERE MODEL_YEAR = 2022 AND RANK_IN_YEAR <= 10
+      ORDER BY RANK_IN_YEAR
+    verified_at: "2026-05-18"
+    verified_by: PRATRI07

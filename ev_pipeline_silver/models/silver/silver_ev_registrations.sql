@@ -1,0 +1,38 @@
+{{
+    config(
+        materialized='table',
+        unique_key='DOL_VEHICLE_ID'
+    )
+}}
+
+SELECT
+    DOL_VEHICLE_ID,
+    VIN_PARTIAL,
+    MAKE,
+    MODEL,
+    MODEL_YEAR,
+    EV_TYPE_FULL,
+    CAFV_ELIGIBILITY,
+    ELECTRIC_RANGE_MILES,
+    IS_RANGE_UNKNOWN,
+    BASE_MSRP_USD,
+    IS_MSRP_UNKNOWN,
+    COUNTY,
+    CITY,
+    STATE_CODE,
+    ZIP_CODE,
+    IS_WA_RECORD,
+    VEHICLE_LATITUDE,
+    VEHICLE_LONGITUDE,
+    LEGISLATIVE_DISTRICT,
+    ELECTRIC_UTILITY,
+    CENSUS_TRACT_2020,
+    MAKE_MODEL_ID,
+    GEO_ID,
+    EV_TYPE_ID,
+    UTILITY_ID,
+    BRONZE_ROW_HASH,
+    SOURCE_FILE,
+    SILVER_LOAD_TS,
+    CURRENT_TIMESTAMP() AS DBT_LOADED_AT
+FROM {{ ref('int_ev_registrations_enriched') }}

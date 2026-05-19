@@ -1,0 +1,12 @@
+ev_pipeline_gold:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: ""
+      user: ""
+      role: SYSADMIN
+      database: EV_GOLD
+      warehouse: WH_TRANSFORM
+      schema: SERVING
+      threads: 4

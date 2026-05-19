@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: silver_clean
+    database: EV_SILVER
+    schema: CLEAN
+    tables:
+      - name: EV_REGISTRATIONS_STAGE
+        description: "Flattened and cleansed EV registration data from Bronze layer SP_BRONZE_TO_SILVER_STAGE procedure"
+
+  - name: bronze_master
+    database: EV_BRONZE
+    schema: RAW
+    tables:
+      - name: MST_VEHICLE_MAKE_MODEL
+        description: "Master table of distinct vehicle make and model combinations"
+      - name: MST_GEOGRAPHY
+        description: "Master geography dimension: state, county, city, zip, census tract"
+      - name: MST_EV_TYPE
+        description: "Master lookup for EV type and CAFV eligibility combinations"
+      - name: MST_ELECTRIC_UTILITY
+        description: "Master table of distinct electric utility providers"

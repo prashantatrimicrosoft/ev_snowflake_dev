@@ -1,0 +1,93 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Calendar dimension for model years 1999-2026"
+    columns:
+      - name: DATE_KEY
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_vehicle
+    description: "Vehicle dimension with make, model, EV type, CAFV eligibility, and manufacturer tier"
+    columns:
+      - name: VEHICLE_KEY
+        tests:
+          - unique
+          - not_null
+      - name: EV_TYPE_SHORT
+        tests:
+          - accepted_values:
+              values: ['BEV', 'PHEV']
+
+  - name: dim_geography
+    description: "Geography dimension with state, county, city, ZIP, census tract, and region grouping"
+    columns:
+      - name: GEO_KEY
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_utility
+    description: "Electric utility provider dimension"
+    columns:
+      - name: UTILITY_KEY
+        tests:
+          - unique
+          - not_null
+
+  - name: fact_ev_registrations
+    description: "Fact table with one row per EV registration, joined to all dimension keys"
+    columns:
+      - name: DOL_VEHICLE_ID
+        tests:
+          - unique
+          - not_null
+      - name: VEHICLE_KEY
+        tests:
+          - relationships:
+              to: ref('dim_vehicle')
+              field: VEHICLE_KEY
+      - name: GEO_KEY
+        tests:
+          - relationships:
+              to: ref('dim_geography')
+              field: GEO_KEY
+              config:
+                where: "GEO_KEY IS NOT NULL"
+
+  - name: agg_yoy_growth
+    description: "Year-over-year EV registration growth by EV type"
+    columns:
+      - name: MODEL_YEAR
+        tests:
+          - not_null
+
+  - name: agg_regional_adoption
+    description: "EV adoption by state, county, and region with BEV/PHEV split"
+    columns:
+      - name: STATE_CODE
+        tests:
+          - not_null
+
+  - name: agg_market_share
+    description: "Manufacturer market share by state and EV type"
+    columns:
+      - name: MAKE
+        tests:
+          - not_null
+
+  - name: agg_cafv_eligibility
+    description: "CAFV incentive eligibility breakdown by EV type"
+    columns:
+      - name: EV_TYPE_SHORT
+        tests:
+          - not_null
+
+  - name: agg_model_trends
+    description: "Model-level registration trends with YoY momentum and ranking"
+    columns:
+      - name: MAKE
+        tests:
+          - not_null
