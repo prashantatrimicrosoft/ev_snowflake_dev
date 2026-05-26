@@ -7,6 +7,42 @@ USE ROLE ACCOUNTADMIN;
 -- Partner: Tesla VIN list (5,000 vehicles from campaign)
 -- Output: Aggregate overlap stats only — no raw data exposed
 -- ============================================================
+--
+-- ARCHITECTURE:
+--
+-- ┌─────────────────────────────┐     ┌─────────────────────────────┐
+-- │  PROVIDER (You)             │     │  PARTNER (Simulated)         │
+-- │  EV_GOLD.SERVING            │     │  EV_CLEANROOM.PARTNER        │
+-- │                             │     │                              │
+-- │  FACT_EV_REGISTRATIONS      │     │  PARTNER_VEHICLE_LIST        │
+-- │  (22,193 vehicles)          │     │  (VINs they want to match)   │
+-- │  Has: VIN, make, model,     │     │  Has: VIN, campaign_id       │
+-- │  county, EV type            │     │                              │
+-- └──────────────┬──────────────┘     └──────────────┬───────────────┘
+--                │                                    │
+--                └──────────────┬─────────────────────┘
+--                               │
+--                ┌──────────────▼──────────────────┐
+--                │  DATA CLEAN ROOM                │
+--                │  EV_CLEANROOM.ANALYSIS          │
+--                │                                 │
+--                │  Secure functions that:         │
+--                │  • Match VINs (intersection)    │
+--                │  • Return ONLY aggregates       │
+--                │  • Never expose raw data        │
+--                │  • Enforce minimum group size   │
+--                └─────────────────────────────────┘
+--                               │
+--                               ▼
+--                ┌──────────────────────────────────┐
+--                │  OUTPUT (both parties can see):  │
+--                │  • Overlap count: 467 vehicles   │
+--                │  • By county: King=109K, etc.    │
+--                │  • By model year: 2022=1,500     │
+--                │  • NO individual VINs exposed    │
+--                └──────────────────────────────────┘
+--
+-- ============================================================
 
 -- ============================================================
 -- STEP 1: Infrastructure
